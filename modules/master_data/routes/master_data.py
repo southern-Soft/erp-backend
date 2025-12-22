@@ -4,7 +4,7 @@ Master Data API - Colors and Sizes Management
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from core import get_db
+from core.database import get_db_samples
 from core.logging import setup_logging
 from modules.samples.models.sample import GarmentColor, GarmentSize
 from modules.samples.schemas.sample import (
@@ -22,7 +22,7 @@ router = APIRouter()
 # ============================================
 
 @router.post("/colors", response_model=GarmentColorResponse, status_code=status.HTTP_201_CREATED)
-def create_color(color_data: GarmentColorCreate, db: Session = Depends(get_db)):
+def create_color(color_data: GarmentColorCreate, db: Session = Depends(get_db_samples)):
     """Create a new garment color"""
     try:
         # Check if color name already exists
@@ -52,7 +52,7 @@ def get_colors(
     is_active: bool = None,
     skip: int = 0,
     limit: int = 1000,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Get all garment colors with optional filters"""
     query = db.query(GarmentColor)
@@ -67,7 +67,7 @@ def get_colors(
 
 
 @router.get("/colors/{color_id}", response_model=GarmentColorResponse)
-def get_color(color_id: int, db: Session = Depends(get_db)):
+def get_color(color_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific color by ID"""
     color = db.query(GarmentColor).filter(GarmentColor.id == color_id).first()
     if not color:
@@ -76,7 +76,7 @@ def get_color(color_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/colors/{color_id}", response_model=GarmentColorResponse)
-def update_color(color_id: int, color_data: GarmentColorUpdate, db: Session = Depends(get_db)):
+def update_color(color_id: int, color_data: GarmentColorUpdate, db: Session = Depends(get_db_samples)):
     """Update a garment color"""
     try:
         color = db.query(GarmentColor).filter(GarmentColor.id == color_id).first()
@@ -107,7 +107,7 @@ def update_color(color_id: int, color_data: GarmentColorUpdate, db: Session = De
 
 
 @router.delete("/colors/{color_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_color(color_id: int, db: Session = Depends(get_db)):
+def delete_color(color_id: int, db: Session = Depends(get_db_samples)):
     """Delete a garment color"""
     try:
         color = db.query(GarmentColor).filter(GarmentColor.id == color_id).first()
@@ -130,7 +130,7 @@ def delete_color(color_id: int, db: Session = Depends(get_db)):
 # ============================================
 
 @router.post("/sizes", response_model=GarmentSizeResponse, status_code=status.HTTP_201_CREATED)
-def create_size(size_data: GarmentSizeCreate, db: Session = Depends(get_db)):
+def create_size(size_data: GarmentSizeCreate, db: Session = Depends(get_db_samples)):
     """Create a new garment size"""
     try:
         # Check if size value already exists
@@ -160,7 +160,7 @@ def get_sizes(
     is_active: bool = None,
     skip: int = 0,
     limit: int = 1000,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Get all garment sizes with optional filters"""
     query = db.query(GarmentSize)
@@ -175,7 +175,7 @@ def get_sizes(
 
 
 @router.get("/sizes/{size_id}", response_model=GarmentSizeResponse)
-def get_size(size_id: int, db: Session = Depends(get_db)):
+def get_size(size_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific size by ID"""
     size = db.query(GarmentSize).filter(GarmentSize.id == size_id).first()
     if not size:
@@ -184,7 +184,7 @@ def get_size(size_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/sizes/{size_id}", response_model=GarmentSizeResponse)
-def update_size(size_id: int, size_data: GarmentSizeUpdate, db: Session = Depends(get_db)):
+def update_size(size_id: int, size_data: GarmentSizeUpdate, db: Session = Depends(get_db_samples)):
     """Update a garment size"""
     try:
         size = db.query(GarmentSize).filter(GarmentSize.id == size_id).first()
@@ -215,7 +215,7 @@ def update_size(size_id: int, size_data: GarmentSizeUpdate, db: Session = Depend
 
 
 @router.delete("/sizes/{size_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_size(size_id: int, db: Session = Depends(get_db)):
+def delete_size(size_id: int, db: Session = Depends(get_db_samples)):
     """Delete a garment size"""
     try:
         size = db.query(GarmentSize).filter(GarmentSize.id == size_id).first()
@@ -238,7 +238,7 @@ def delete_size(size_id: int, db: Session = Depends(get_db)):
 # ============================================
 
 @router.post("/seed-defaults", status_code=status.HTTP_201_CREATED)
-def seed_default_data(db: Session = Depends(get_db)):
+def seed_default_data(db: Session = Depends(get_db_samples)):
     """Seed default colors and sizes (run once during setup)"""
     try:
         # Check if data already exists

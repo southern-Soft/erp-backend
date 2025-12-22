@@ -1,14 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Boolean
 from sqlalchemy.sql import func
-from core.database import Base
+from core.database import BaseOrders as Base
 
 
 class OrderManagement(Base):
     __tablename__ = "order_management"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    
+
     # User-requested Order Basic Information fields
     order_no = Column(String, unique=True, nullable=False, index=True)  # Renamed from order_id
     style_name = Column(String, nullable=False)
@@ -18,11 +17,11 @@ class OrderManagement(Base):
     scl_po = Column(String, nullable=True)  # New field (SCL PO)
     fob = Column(Float, nullable=True)  # New field (FOB price)
     note = Column(Text, nullable=True)  # New field
-    
-    # Relationships
-    buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=False)
-    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=False)
-    
+
+    # Cross-database references (no FK constraints)
+    buyer_id = Column(Integer, nullable=False, index=True)  # No FK - clients DB
+    style_id = Column(Integer, nullable=False, index=True)  # No FK - samples DB
+
     # Additional existing fields (kept for compatibility)
     product_category = Column(String, nullable=True)
     style_description = Column(Text, nullable=True)
@@ -42,7 +41,3 @@ class OrderManagement(Base):
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    buyer = relationship("Buyer")
-    style = relationship("StyleSummary")

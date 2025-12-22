@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from core import get_db, get_password_hash
+from core.database import get_db_users
+from core import get_password_hash
 from core.logging import setup_logging
 from modules.users.models.user import User
 from modules.users.schemas.user import UserCreate, UserResponse, UserUpdate
@@ -12,7 +13,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
+def create_user(user_data: UserCreate, db: Session = Depends(get_db_users)):
     """Create a new user (Admin only)"""
     try:
         # Check if user already exists
@@ -55,14 +56,14 @@ def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=List[UserResponse])
-def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_users)):
     """Get all users"""
     users = db.query(User).order_by(User.id.desc()).offset(skip).limit(limit).all()
     return users
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, db: Session = Depends(get_db)):
+def get_user(user_id: int, db: Session = Depends(get_db_users)):
     """Get a specific user"""
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
@@ -71,7 +72,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db)):
+def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_db_users)):
     """Update a user"""
     try:
         user = db.query(User).filter(User.id == user_id).first()
@@ -107,7 +108,7 @@ def update_user(user_id: int, user_data: UserUpdate, db: Session = Depends(get_d
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int, db: Session = Depends(get_db)):
+def delete_user(user_id: int, db: Session = Depends(get_db_users)):
     """Delete a user"""
     try:
         user = db.query(User).filter(User.id == user_id).first()

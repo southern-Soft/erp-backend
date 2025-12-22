@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
-from core import get_db, get_password_hash, verify_password, create_access_token
+from core.database import get_db_users
+from core import get_password_hash, verify_password, create_access_token
 from core.security import decode_token
 from core.logging import setup_logging
 from modules.users.models.user import User
@@ -14,7 +15,7 @@ router = APIRouter()
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(user_data: UserCreate, db: Session = Depends(get_db)):
+def register(user_data: UserCreate, db: Session = Depends(get_db_users)):
     """Register a new user"""
     try:
         # Check if user already exists
@@ -58,7 +59,7 @@ def register(user_data: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(login_data: LoginRequest, db: Session = Depends(get_db)):
+def login(login_data: LoginRequest, db: Session = Depends(get_db_users)):
     """Login and get access token"""
     user = db.query(User).filter(User.username == login_data.username).first()
 
@@ -85,7 +86,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=UserResponse)
 def get_current_user(
     authorization: Optional[str] = Header(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_users)
 ):
     """Get current user info from JWT token"""
     # Get token from Authorization header

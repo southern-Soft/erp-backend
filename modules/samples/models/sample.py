@@ -1,14 +1,14 @@
 from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Text, Boolean, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from core.database import Base
+from core.database import BaseSamples as Base
 
 
 class StyleSummary(Base):
     __tablename__ = "style_summaries"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=False)
+    buyer_id = Column(Integer, nullable=False, index=True)  # No FK - clients DB
     style_name = Column(String, nullable=False, index=True)
     style_id = Column(String, unique=True, nullable=False, index=True)
     product_category = Column(String, nullable=True)
@@ -22,8 +22,7 @@ class StyleSummary(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    buyer = relationship("Buyer")
+    # Relationships (within samples DB only)
     variants = relationship("StyleVariant", back_populates="style")
     samples = relationship("Sample", back_populates="style")
 
@@ -123,8 +122,8 @@ class Sample(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     sample_id = Column(String, unique=True, nullable=False, index=True)
-    buyer_id = Column(Integer, ForeignKey("buyers.id"), nullable=False)
-    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=False)
+    buyer_id = Column(Integer, nullable=False, index=True)  # No FK - clients DB
+    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=False)  # Same DB - keep FK
     sample_type = Column(String, nullable=False)  # Proto, Fit, PP, etc.
     sample_description = Column(Text, nullable=True)
     item = Column(String, nullable=True)
@@ -144,14 +143,9 @@ class Sample(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
-    buyer = relationship("Buyer")
+    # Relationships (within samples DB only)
     style = relationship("StyleSummary", back_populates="samples")
     operations = relationship("SampleOperation", back_populates="sample")
-
-    @property
-    def buyer_name(self):
-        return self.buyer.buyer_name if self.buyer else None
 
     @property
     def style_name(self):
