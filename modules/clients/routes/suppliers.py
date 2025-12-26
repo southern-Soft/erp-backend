@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
-from core import get_db
+from core.database import get_db_clients
 from modules.clients.models.client import Supplier
 from modules.clients.schemas.supplier import SupplierCreate, SupplierResponse, SupplierUpdate
 from core.logging import setup_logging
@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=SupplierResponse, status_code=status.HTTP_201_CREATED)
-def create_supplier(supplier_data: SupplierCreate, db: Session = Depends(get_db)):
+def create_supplier(supplier_data: SupplierCreate, db: Session = Depends(get_db_clients)):
     """Create a new supplier"""
     try:
         new_supplier = Supplier(**supplier_data.model_dump())
@@ -27,14 +27,14 @@ def create_supplier(supplier_data: SupplierCreate, db: Session = Depends(get_db)
 
 
 @router.get("/", response_model=List[SupplierResponse])
-def get_suppliers(skip: int = 0, limit: int = 10000, db: Session = Depends(get_db)):
+def get_suppliers(skip: int = 0, limit: int = 10000, db: Session = Depends(get_db_clients)):
     """Get all suppliers"""
     suppliers = db.query(Supplier).order_by(Supplier.id.desc()).offset(skip).limit(limit).all()
     return suppliers
 
 
 @router.get("/{supplier_id}", response_model=SupplierResponse)
-def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
+def get_supplier(supplier_id: int, db: Session = Depends(get_db_clients)):
     """Get a specific supplier"""
     supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
     if not supplier:
@@ -43,7 +43,7 @@ def get_supplier(supplier_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{supplier_id}", response_model=SupplierResponse)
-def update_supplier(supplier_id: int, supplier_data: SupplierUpdate, db: Session = Depends(get_db)):
+def update_supplier(supplier_id: int, supplier_data: SupplierUpdate, db: Session = Depends(get_db_clients)):
     """Update a supplier"""
     try:
         supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()
@@ -65,7 +65,7 @@ def update_supplier(supplier_id: int, supplier_data: SupplierUpdate, db: Session
 
 
 @router.delete("/{supplier_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_supplier(supplier_id: int, db: Session = Depends(get_db)):
+def delete_supplier(supplier_id: int, db: Session = Depends(get_db_clients)):
     """Delete a supplier"""
     try:
         supplier = db.query(Supplier).filter(Supplier.id == supplier_id).first()

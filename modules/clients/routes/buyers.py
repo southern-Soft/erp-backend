@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from core import get_db
+from core.database import get_db_clients
 from core.logging import setup_logging
 from modules.clients.models.client import Buyer, ContactPerson, ShippingInfo, BankingInfo
 from modules.clients.schemas.buyer import (
@@ -18,7 +18,7 @@ router = APIRouter()
 
 # Contact Person endpoints
 @router.post("/contacts", response_model=ContactPersonResponse, status_code=status.HTTP_201_CREATED)
-def create_contact(contact_data: ContactPersonCreate, db: Session = Depends(get_db)):
+def create_contact(contact_data: ContactPersonCreate, db: Session = Depends(get_db_clients)):
     """Create a new contact person"""
     new_contact = ContactPerson(**contact_data.model_dump())
     db.add(new_contact)
@@ -28,7 +28,7 @@ def create_contact(contact_data: ContactPersonCreate, db: Session = Depends(get_
 
 
 @router.get("/contacts", response_model=List[ContactPersonResponse])
-def get_contacts(buyer_id: int = None, db: Session = Depends(get_db)):
+def get_contacts(buyer_id: int = None, db: Session = Depends(get_db_clients)):
     """Get all contact persons, optionally filtered by buyer"""
     query = db.query(ContactPerson)
     if buyer_id:
@@ -38,7 +38,7 @@ def get_contacts(buyer_id: int = None, db: Session = Depends(get_db)):
 
 # Shipping Info endpoints
 @router.post("/shipping", response_model=ShippingInfoResponse, status_code=status.HTTP_201_CREATED)
-def create_shipping_info(shipping_data: ShippingInfoCreate, db: Session = Depends(get_db)):
+def create_shipping_info(shipping_data: ShippingInfoCreate, db: Session = Depends(get_db_clients)):
     """Create shipping information"""
     new_shipping = ShippingInfo(**shipping_data.model_dump())
     db.add(new_shipping)
@@ -48,7 +48,7 @@ def create_shipping_info(shipping_data: ShippingInfoCreate, db: Session = Depend
 
 
 @router.get("/shipping", response_model=List[ShippingInfoResponse])
-def get_shipping_info(buyer_id: int = None, db: Session = Depends(get_db)):
+def get_shipping_info(buyer_id: int = None, db: Session = Depends(get_db_clients)):
     """Get all shipping information"""
     query = db.query(ShippingInfo)
     if buyer_id:
@@ -58,7 +58,7 @@ def get_shipping_info(buyer_id: int = None, db: Session = Depends(get_db)):
 
 # Banking Info endpoints
 @router.post("/banking", response_model=BankingInfoResponse, status_code=status.HTTP_201_CREATED)
-def create_banking_info(banking_data: BankingInfoCreate, db: Session = Depends(get_db)):
+def create_banking_info(banking_data: BankingInfoCreate, db: Session = Depends(get_db_clients)):
     """Create banking information"""
     new_banking = BankingInfo(**banking_data.model_dump())
     db.add(new_banking)
@@ -68,13 +68,13 @@ def create_banking_info(banking_data: BankingInfoCreate, db: Session = Depends(g
 
 
 @router.get("/banking", response_model=List[BankingInfoResponse])
-def get_banking_info(db: Session = Depends(get_db)):
+def get_banking_info(db: Session = Depends(get_db_clients)):
     """Get all banking information"""
     return db.query(BankingInfo).order_by(BankingInfo.id.desc()).all()
 
 
 @router.delete("/banking/{banking_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_banking_info(banking_id: int, db: Session = Depends(get_db)):
+def delete_banking_info(banking_id: int, db: Session = Depends(get_db_clients)):
     """Delete banking information"""
     banking = db.query(BankingInfo).filter(BankingInfo.id == banking_id).first()
     if not banking:
@@ -87,7 +87,7 @@ def delete_banking_info(banking_id: int, db: Session = Depends(get_db)):
 
 # Buyer endpoints
 @router.post("/", response_model=BuyerResponse, status_code=status.HTTP_201_CREATED)
-def create_buyer(buyer_data: BuyerCreate, db: Session = Depends(get_db)):
+def create_buyer(buyer_data: BuyerCreate, db: Session = Depends(get_db_clients)):
     """Create a new buyer"""
     try:
         new_buyer = Buyer(**buyer_data.model_dump())
@@ -105,7 +105,7 @@ def create_buyer(buyer_data: BuyerCreate, db: Session = Depends(get_db)):
 def get_buyers(
     skip: int = Query(default=0, ge=0, description="Number of records to skip"),
     limit: int = Query(default=10000, ge=1, le=10000, description="Max records per request"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_clients)
 ):
     """Get all buyers"""
     buyers = db.query(Buyer).order_by(Buyer.id.desc()).offset(skip).limit(limit).all()
@@ -113,7 +113,7 @@ def get_buyers(
 
 
 @router.get("/{buyer_id}", response_model=BuyerResponse)
-def get_buyer(buyer_id: int, db: Session = Depends(get_db)):
+def get_buyer(buyer_id: int, db: Session = Depends(get_db_clients)):
     """Get a specific buyer"""
     buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
     if not buyer:
@@ -122,7 +122,7 @@ def get_buyer(buyer_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{buyer_id}", response_model=BuyerResponse)
-def update_buyer(buyer_id: int, buyer_data: BuyerUpdate, db: Session = Depends(get_db)):
+def update_buyer(buyer_id: int, buyer_data: BuyerUpdate, db: Session = Depends(get_db_clients)):
     """Update a buyer"""
     try:
         buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()
@@ -144,7 +144,7 @@ def update_buyer(buyer_id: int, buyer_data: BuyerUpdate, db: Session = Depends(g
 
 
 @router.delete("/{buyer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_buyer(buyer_id: int, db: Session = Depends(get_db)):
+def delete_buyer(buyer_id: int, db: Session = Depends(get_db_clients)):
     """Delete a buyer"""
     try:
         buyer = db.query(Buyer).filter(Buyer.id == buyer_id).first()

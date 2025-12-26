@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.sql import func
-from core.database import Base
+from core.database import BaseSamples as Base
 
 
 class MaterialMaster(Base):

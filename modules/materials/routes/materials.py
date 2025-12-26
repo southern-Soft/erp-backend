@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
-from core import get_db
+from core.database import get_db_samples
 from core.logging import setup_logging
 from modules.materials.models.material import MaterialMaster
 from modules.materials.schemas.material import MaterialMasterCreate, MaterialMasterUpdate, MaterialMasterResponse
@@ -12,14 +12,14 @@ router = APIRouter(prefix="/materials", tags=["materials"])
 
 
 @router.get("/", response_model=List[MaterialMasterResponse])
-def get_materials(db: Session = Depends(get_db)):
+def get_materials(db: Session = Depends(get_db_samples)):
     """Get all materials"""
     materials = db.query(MaterialMaster).order_by(MaterialMaster.material_name).all()
     return materials
 
 
 @router.get("/{material_id}", response_model=MaterialMasterResponse)
-def get_material(material_id: int, db: Session = Depends(get_db)):
+def get_material(material_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific material by ID"""
     material = db.query(MaterialMaster).filter(MaterialMaster.id == material_id).first()
     if not material:
@@ -28,7 +28,7 @@ def get_material(material_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/", response_model=MaterialMasterResponse, status_code=201)
-def create_material(material: MaterialMasterCreate, db: Session = Depends(get_db)):
+def create_material(material: MaterialMasterCreate, db: Session = Depends(get_db_samples)):
     """Create a new material"""
     # Check if material already exists
     existing = db.query(MaterialMaster).filter(
@@ -56,7 +56,7 @@ def create_material(material: MaterialMasterCreate, db: Session = Depends(get_db
 def update_material(
     material_id: int,
     material: MaterialMasterUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Update an existing material"""
     db_material = db.query(MaterialMaster).filter(MaterialMaster.id == material_id).first()
@@ -90,7 +90,7 @@ def update_material(
 
 
 @router.delete("/{material_id}")
-def delete_material(material_id: int, db: Session = Depends(get_db)):
+def delete_material(material_id: int, db: Session = Depends(get_db_samples)):
     """Delete a material"""
     db_material = db.query(MaterialMaster).filter(MaterialMaster.id == material_id).first()
     if not db_material:

@@ -8,14 +8,36 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     ENVIRONMENT: str = "development"
 
-    # PostgreSQL Database
+    # PostgreSQL Base Settings
     POSTGRES_USER: str = "postgres"
     POSTGRES_PASSWORD: str = "root"
-    POSTGRES_HOST: str = "db"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "rmg_erp"
 
+    # Multi-Database Host Configuration
+    POSTGRES_HOST_CLIENTS: str = "db-clients"
+    POSTGRES_HOST_SAMPLES: str = "db-samples"
+    POSTGRES_HOST_USERS: str = "db-users"
+    POSTGRES_HOST_ORDERS: str = "db-orders"
+    POSTGRES_HOST_MERCHANDISER: str = "db-merchandiser"
+
+    # Multi-Database Names
+    POSTGRES_DB_CLIENTS: str = "rmg_erp_clients"
+    POSTGRES_DB_SAMPLES: str = "rmg_erp_samples"
+    POSTGRES_DB_USERS: str = "rmg_erp_users"
+    POSTGRES_DB_ORDERS: str = "rmg_erp_orders"
+    POSTGRES_DB_MERCHANDISER: str = "rmg_erp_merchandiser"
+
+    # Legacy single DB (for backward compatibility)
+    POSTGRES_HOST: str = "db-samples"
+    POSTGRES_DB: str = "rmg_erp_samples"
+
+    # Computed Database URLs
     DATABASE_URL: Optional[str] = None
+    DATABASE_URL_CLIENTS: Optional[str] = None
+    DATABASE_URL_SAMPLES: Optional[str] = None
+    DATABASE_URL_USERS: Optional[str] = None
+    DATABASE_URL_ORDERS: Optional[str] = None
+    DATABASE_URL_MERCHANDISER: Optional[str] = None
 
     # JWT Settings
     SECRET_KEY: str = "your-secret-key-change-this-in-production-please-make-it-secure"
@@ -39,8 +61,16 @@ class Settings(BaseSettings):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        # Build database URLs for each database
+        self.DATABASE_URL_CLIENTS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_CLIENTS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_CLIENTS}"
+        self.DATABASE_URL_SAMPLES = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_SAMPLES}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_SAMPLES}"
+        self.DATABASE_URL_USERS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_USERS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_USERS}"
+        self.DATABASE_URL_ORDERS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_ORDERS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_ORDERS}"
+        self.DATABASE_URL_MERCHANDISER = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_MERCHANDISER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_MERCHANDISER}"
+
+        # Legacy DATABASE_URL defaults to samples
         if not self.DATABASE_URL:
-            self.DATABASE_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            self.DATABASE_URL = self.DATABASE_URL_SAMPLES
 
 
 settings = Settings()

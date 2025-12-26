@@ -46,15 +46,15 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize database on startup"""
-    logger.info("Initializing database...")
+    """Initialize all databases on startup"""
+    logger.info("Initializing all databases...")
     init_db()
-    logger.info("Database initialized successfully!")
+    logger.info("All databases initialized successfully!")
 
-    # Initialize sample data
-    from core.database import SessionLocal
+    # Initialize sample data in users database
+    from core.database import SessionLocalUsers
     from init_data import init_sample_data
-    db = SessionLocal()
+    db = SessionLocalUsers()
     try:
         init_sample_data(db)
     finally:
@@ -80,6 +80,7 @@ from modules.materials import materials_router
 from modules.users import users_router
 from modules.health import health_router
 from modules.master_data import master_data_router
+from modules.merchandiser import merchandiser_router
 
 # Register routers
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
@@ -93,3 +94,4 @@ app.include_router(materials_router, prefix=f"{settings.API_V1_STR}", tags=["mat
 app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["users"])
 app.include_router(health_router, prefix=f"{settings.API_V1_STR}", tags=["health"])
 app.include_router(master_data_router, prefix=f"{settings.API_V1_STR}/master", tags=["master-data"])
+app.include_router(merchandiser_router, prefix=f"{settings.API_V1_STR}/merchandiser", tags=["merchandiser"])

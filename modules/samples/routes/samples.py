@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session, joinedload
 from typing import List
-from core import get_db
+from core.database import get_db_samples
 from core.logging import setup_logging
 from modules.samples.models.sample import (
     Sample, SampleOperation, StyleSummary, StyleVariant,
@@ -27,7 +27,7 @@ router = APIRouter()
 
 # Style Summary endpoints
 @router.post("/styles", response_model=StyleSummaryResponse, status_code=status.HTTP_201_CREATED)
-def create_style(style_data: StyleSummaryCreate, db: Session = Depends(get_db)):
+def create_style(style_data: StyleSummaryCreate, db: Session = Depends(get_db_samples)):
     """Create a new style summary"""
     new_style = StyleSummary(**style_data.model_dump())
     db.add(new_style)
@@ -40,7 +40,7 @@ def create_style(style_data: StyleSummaryCreate, db: Session = Depends(get_db)):
 def get_styles(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=1000, ge=1, le=10000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Get all style summaries (max 10000 per request)"""
     styles = db.query(StyleSummary).order_by(StyleSummary.id.desc()).offset(skip).limit(limit).all()
@@ -48,7 +48,7 @@ def get_styles(
 
 
 @router.get("/styles/{style_id}", response_model=StyleSummaryResponse)
-def get_style(style_id: int, db: Session = Depends(get_db)):
+def get_style(style_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific style summary"""
     style = db.query(StyleSummary).filter(StyleSummary.id == style_id).first()
     if not style:
@@ -57,7 +57,7 @@ def get_style(style_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/styles/{style_id}", response_model=StyleSummaryResponse)
-def update_style(style_id: int, style_data: StyleSummaryCreate, db: Session = Depends(get_db)):
+def update_style(style_id: int, style_data: StyleSummaryCreate, db: Session = Depends(get_db_samples)):
     """Update a style summary"""
     try:
         style = db.query(StyleSummary).filter(StyleSummary.id == style_id).first()
@@ -79,7 +79,7 @@ def update_style(style_id: int, style_data: StyleSummaryCreate, db: Session = De
 
 
 @router.delete("/styles/{style_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_style(style_id: int, db: Session = Depends(get_db)):
+def delete_style(style_id: int, db: Session = Depends(get_db_samples)):
     """Delete a style summary"""
     style = db.query(StyleSummary).filter(StyleSummary.id == style_id).first()
     if not style:
@@ -108,7 +108,7 @@ def delete_style(style_id: int, db: Session = Depends(get_db)):
 
 # Style Variant endpoints - MUST come before /{sample_id} route
 @router.post("/style-variants", response_model=StyleVariantResponse, status_code=status.HTTP_201_CREATED)
-def create_style_variant(variant_data: StyleVariantCreate, db: Session = Depends(get_db)):
+def create_style_variant(variant_data: StyleVariantCreate, db: Session = Depends(get_db_samples)):
     """Create a new style variant"""
     try:
         # Exclude color_parts since it's a relationship, not a column
@@ -129,7 +129,7 @@ def get_style_variants(
     style_summary_id: int = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=1000, ge=1, le=10000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Get all style variants (max 10000 per request), optionally filtered by style summary"""
     query = db.query(StyleVariant).options(joinedload(StyleVariant.style))
@@ -140,7 +140,7 @@ def get_style_variants(
 
 
 @router.get("/style-variants/{variant_id}", response_model=StyleVariantResponse)
-def get_style_variant(variant_id: int, db: Session = Depends(get_db)):
+def get_style_variant(variant_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific style variant"""
     variant = db.query(StyleVariant).filter(StyleVariant.id == variant_id).first()
     if not variant:
@@ -149,7 +149,7 @@ def get_style_variant(variant_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/style-variants/{variant_id}", response_model=StyleVariantResponse)
-def update_style_variant(variant_id: int, variant_data: StyleVariantUpdate, db: Session = Depends(get_db)):
+def update_style_variant(variant_id: int, variant_data: StyleVariantUpdate, db: Session = Depends(get_db_samples)):
     """Update a style variant"""
     try:
         variant = db.query(StyleVariant).filter(StyleVariant.id == variant_id).first()
@@ -171,7 +171,7 @@ def update_style_variant(variant_id: int, variant_data: StyleVariantUpdate, db: 
 
 
 @router.delete("/style-variants/{variant_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_style_variant(variant_id: int, db: Session = Depends(get_db)):
+def delete_style_variant(variant_id: int, db: Session = Depends(get_db_samples)):
     """Delete a style variant"""
     variant = db.query(StyleVariant).filter(StyleVariant.id == variant_id).first()
     if not variant:
@@ -184,7 +184,7 @@ def delete_style_variant(variant_id: int, db: Session = Depends(get_db)):
 
 # Required Material endpoints - MUST come before /{sample_id} route
 @router.post("/required-materials", response_model=RequiredMaterialResponse, status_code=status.HTTP_201_CREATED)
-def create_required_material(material_data: RequiredMaterialCreate, db: Session = Depends(get_db)):
+def create_required_material(material_data: RequiredMaterialCreate, db: Session = Depends(get_db_samples)):
     """Create a new required material"""
     try:
         new_material = RequiredMaterial(**material_data.model_dump())
@@ -199,7 +199,7 @@ def create_required_material(material_data: RequiredMaterialCreate, db: Session 
 
 
 @router.get("/required-materials", response_model=List[RequiredMaterialResponse])
-def get_required_materials(style_variant_id: int = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_required_materials(style_variant_id: int = None, skip: int = 0, limit: int = 100, db: Session = Depends(get_db_samples)):
     """Get all required materials, optionally filtered by style variant"""
     query = db.query(RequiredMaterial)
     if style_variant_id:
@@ -209,7 +209,7 @@ def get_required_materials(style_variant_id: int = None, skip: int = 0, limit: i
 
 
 @router.get("/required-materials/{material_id}", response_model=RequiredMaterialResponse)
-def get_required_material(material_id: int, db: Session = Depends(get_db)):
+def get_required_material(material_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific required material"""
     material = db.query(RequiredMaterial).filter(RequiredMaterial.id == material_id).first()
     if not material:
@@ -218,7 +218,7 @@ def get_required_material(material_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/required-materials/{material_id}", response_model=RequiredMaterialResponse)
-def update_required_material(material_id: int, material_data: RequiredMaterialUpdate, db: Session = Depends(get_db)):
+def update_required_material(material_id: int, material_data: RequiredMaterialUpdate, db: Session = Depends(get_db_samples)):
     """Update a required material"""
     try:
         material = db.query(RequiredMaterial).filter(RequiredMaterial.id == material_id).first()
@@ -240,7 +240,7 @@ def update_required_material(material_id: int, material_data: RequiredMaterialUp
 
 
 @router.delete("/required-materials/{material_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_required_material(material_id: int, db: Session = Depends(get_db)):
+def delete_required_material(material_id: int, db: Session = Depends(get_db_samples)):
     """Delete a required material"""
     material = db.query(RequiredMaterial).filter(RequiredMaterial.id == material_id).first()
     if not material:
@@ -253,7 +253,7 @@ def delete_required_material(material_id: int, db: Session = Depends(get_db)):
 
 # TNA endpoints - MUST come before /{sample_id} route
 @router.post("/tna", response_model=SampleTNAResponse, status_code=status.HTTP_201_CREATED)
-def create_tna(tna_data: SampleTNACreate, db: Session = Depends(get_db)):
+def create_tna(tna_data: SampleTNACreate, db: Session = Depends(get_db_samples)):
     """Create a new TNA record"""
     new_tna = SampleTNA(**tna_data.model_dump())
     db.add(new_tna)
@@ -263,14 +263,14 @@ def create_tna(tna_data: SampleTNACreate, db: Session = Depends(get_db)):
 
 
 @router.get("/tna", response_model=List[SampleTNAResponse])
-def get_tna_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_tna_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_samples)):
     """Get all TNA records"""
     tna_records = db.query(SampleTNA).order_by(SampleTNA.id.desc()).offset(skip).limit(limit).all()
     return tna_records
 
 
 @router.put("/tna/{tna_id}", response_model=SampleTNAResponse)
-def update_tna(tna_id: int, tna_data: SampleTNAUpdate, db: Session = Depends(get_db)):
+def update_tna(tna_id: int, tna_data: SampleTNAUpdate, db: Session = Depends(get_db_samples)):
     """Update a TNA record by ID"""
     try:
         tna = db.query(SampleTNA).filter(SampleTNA.id == tna_id).first()
@@ -292,7 +292,7 @@ def update_tna(tna_id: int, tna_data: SampleTNAUpdate, db: Session = Depends(get
 
 
 @router.delete("/tna/{tna_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_tna(tna_id: int, db: Session = Depends(get_db)):
+def delete_tna(tna_id: int, db: Session = Depends(get_db_samples)):
     """Delete a TNA record by ID"""
     tna = db.query(SampleTNA).filter(SampleTNA.id == tna_id).first()
     if not tna:
@@ -304,7 +304,7 @@ def delete_tna(tna_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/tna/{sample_id}", response_model=SampleTNAResponse)
-def get_tna_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
+def get_tna_by_sample_id(sample_id: str, db: Session = Depends(get_db_samples)):
     """Get TNA record by sample ID"""
     tna = db.query(SampleTNA).filter(SampleTNA.sample_id == sample_id).first()
     if not tna:
@@ -314,7 +314,7 @@ def get_tna_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
 
 # Plan endpoints - MUST come before /{sample_id} route
 @router.post("/plan", response_model=SamplePlanResponse, status_code=status.HTTP_201_CREATED)
-def create_plan(plan_data: SamplePlanCreate, db: Session = Depends(get_db)):
+def create_plan(plan_data: SamplePlanCreate, db: Session = Depends(get_db_samples)):
     """Create a new Plan record"""
     # Check if plan already exists for this sample_id
     existing_plan = db.query(SamplePlan).filter(SamplePlan.sample_id == plan_data.sample_id).first()
@@ -336,14 +336,14 @@ def create_plan(plan_data: SamplePlanCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/plan", response_model=List[SamplePlanResponse])
-def get_plan_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_plan_records(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_samples)):
     """Get all Plan records"""
     plan_records = db.query(SamplePlan).order_by(SamplePlan.id.desc()).offset(skip).limit(limit).all()
     return plan_records
 
 
 @router.get("/plan/{sample_id}", response_model=SamplePlanResponse)
-def get_plan_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
+def get_plan_by_sample_id(sample_id: str, db: Session = Depends(get_db_samples)):
     """Get Plan record by sample ID"""
     plan = db.query(SamplePlan).filter(SamplePlan.sample_id == sample_id).first()
     if not plan:
@@ -353,7 +353,7 @@ def get_plan_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
 
 # Operation Type endpoints (for Add New Operation page) - MUST come before /{sample_id} route
 @router.post("/operations-master", response_model=OperationTypeResponse, status_code=status.HTTP_201_CREATED)
-def create_operation_type(operation_data: OperationTypeCreate, db: Session = Depends(get_db)):
+def create_operation_type(operation_data: OperationTypeCreate, db: Session = Depends(get_db_samples)):
     """Create a new operation type"""
     new_operation = OperationType(**operation_data.model_dump())
     db.add(new_operation)
@@ -363,14 +363,14 @@ def create_operation_type(operation_data: OperationTypeCreate, db: Session = Dep
 
 
 @router.get("/operations-master", response_model=List[OperationTypeResponse])
-def get_operation_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_operation_types(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_samples)):
     """Get all operation types"""
     operations = db.query(OperationType).order_by(OperationType.id.desc()).offset(skip).limit(limit).all()
     return operations
 
 
 @router.put("/operations-master/{operation_id}", response_model=OperationTypeResponse)
-def update_operation_type(operation_id: int, operation_data: OperationTypeCreate, db: Session = Depends(get_db)):
+def update_operation_type(operation_id: int, operation_data: OperationTypeCreate, db: Session = Depends(get_db_samples)):
     """Update an operation type"""
     operation = db.query(OperationType).filter(OperationType.id == operation_id).first()
     if not operation:
@@ -385,7 +385,7 @@ def update_operation_type(operation_id: int, operation_data: OperationTypeCreate
 
 
 @router.delete("/operations-master/{operation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_operation_type(operation_id: int, db: Session = Depends(get_db)):
+def delete_operation_type(operation_id: int, db: Session = Depends(get_db_samples)):
     """Delete an operation type"""
     operation = db.query(OperationType).filter(OperationType.id == operation_id).first()
     if not operation:
@@ -398,7 +398,7 @@ def delete_operation_type(operation_id: int, db: Session = Depends(get_db)):
 
 # SMV Calculation endpoints - MUST come before /{sample_id} route
 @router.post("/smv", response_model=SMVCalculationResponse, status_code=status.HTTP_201_CREATED)
-def create_smv_calculation(smv_data: SMVCalculationCreate, db: Session = Depends(get_db)):
+def create_smv_calculation(smv_data: SMVCalculationCreate, db: Session = Depends(get_db_samples)):
     """Create a new SMV calculation"""
     new_smv = SMVCalculation(**smv_data.model_dump())
     db.add(new_smv)
@@ -408,14 +408,14 @@ def create_smv_calculation(smv_data: SMVCalculationCreate, db: Session = Depends
 
 
 @router.get("/smv", response_model=List[SMVCalculationResponse])
-def get_smv_calculations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
+def get_smv_calculations(skip: int = 0, limit: int = 100, db: Session = Depends(get_db_samples)):
     """Get all SMV calculations"""
     smv_records = db.query(SMVCalculation).order_by(SMVCalculation.id.desc()).offset(skip).limit(limit).all()
     return smv_records
 
 
 @router.get("/smv/{sample_id}", response_model=SMVCalculationResponse)
-def get_smv_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
+def get_smv_by_sample_id(sample_id: str, db: Session = Depends(get_db_samples)):
     """Get SMV calculation by sample ID"""
     smv = db.query(SMVCalculation).filter(SMVCalculation.sample_id == sample_id).first()
     if not smv:
@@ -425,7 +425,7 @@ def get_smv_by_sample_id(sample_id: str, db: Session = Depends(get_db)):
 
 # Sample Operation endpoints - MUST come before /{sample_id} route
 @router.post("/operations", response_model=SampleOperationResponse, status_code=status.HTTP_201_CREATED)
-def create_sample_operation(operation_data: SampleOperationCreate, db: Session = Depends(get_db)):
+def create_sample_operation(operation_data: SampleOperationCreate, db: Session = Depends(get_db_samples)):
     """Create a new sample operation"""
     # Calculate total_duration
     operation_dict = operation_data.model_dump()
@@ -440,7 +440,7 @@ def create_sample_operation(operation_data: SampleOperationCreate, db: Session =
 
 
 @router.get("/operations", response_model=List[SampleOperationResponse])
-def get_sample_operations(sample_id: int = None, db: Session = Depends(get_db)):
+def get_sample_operations(sample_id: int = None, db: Session = Depends(get_db_samples)):
     """Get all sample operations"""
     query = db.query(SampleOperation)
     if sample_id:
@@ -449,7 +449,7 @@ def get_sample_operations(sample_id: int = None, db: Session = Depends(get_db)):
 
 
 @router.get("/operations/{operation_id}", response_model=SampleOperationResponse)
-def get_sample_operation(operation_id: int, db: Session = Depends(get_db)):
+def get_sample_operation(operation_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific sample operation"""
     operation = db.query(SampleOperation).filter(SampleOperation.id == operation_id).first()
     if not operation:
@@ -458,7 +458,7 @@ def get_sample_operation(operation_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/operations/{operation_id}", response_model=SampleOperationResponse)
-def update_sample_operation(operation_id: int, operation_data: SampleOperationCreate, db: Session = Depends(get_db)):
+def update_sample_operation(operation_id: int, operation_data: SampleOperationCreate, db: Session = Depends(get_db_samples)):
     """Update a sample operation"""
     operation = db.query(SampleOperation).filter(SampleOperation.id == operation_id).first()
     if not operation:
@@ -477,7 +477,7 @@ def update_sample_operation(operation_id: int, operation_data: SampleOperationCr
 
 
 @router.delete("/operations/{operation_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sample_operation(operation_id: int, db: Session = Depends(get_db)):
+def delete_sample_operation(operation_id: int, db: Session = Depends(get_db_samples)):
     """Delete a sample operation"""
     operation = db.query(SampleOperation).filter(SampleOperation.id == operation_id).first()
     if not operation:
@@ -490,7 +490,7 @@ def delete_sample_operation(operation_id: int, db: Session = Depends(get_db)):
 
 # Sample endpoints - MUST come AFTER all specific routes (/tna, /plan, /operations, etc.)
 @router.post("/", response_model=SampleResponse, status_code=status.HTTP_201_CREATED)
-def create_sample(sample_data: SampleCreate, db: Session = Depends(get_db)):
+def create_sample(sample_data: SampleCreate, db: Session = Depends(get_db_samples)):
     """Create a new sample"""
     try:
         new_sample = Sample(**sample_data.model_dump())
@@ -509,18 +509,20 @@ def get_samples(
     buyer_id: int = None,
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=10000, ge=1, le=10000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db_samples)
 ):
     """Get all samples, optionally filtered by buyer"""
     query = db.query(Sample)
     if buyer_id:
         query = query.filter(Sample.buyer_id == buyer_id)
-    samples = query.options(joinedload(Sample.buyer), joinedload(Sample.style)).order_by(Sample.id.desc()).offset(skip).limit(limit).all()
+    # Note: buyer is in clients DB, so we can't joinedload it here
+    # Buyer name should be fetched via buyer_service if needed
+    samples = query.options(joinedload(Sample.style)).order_by(Sample.id.desc()).offset(skip).limit(limit).all()
     return samples
 
 
 @router.get("/by-sample-id/{sample_id_str}", response_model=SampleResponse)
-def get_sample_by_sample_id(sample_id_str: str, db: Session = Depends(get_db)):
+def get_sample_by_sample_id(sample_id_str: str, db: Session = Depends(get_db_samples)):
     """Get a sample by its sample_id string"""
     sample = db.query(Sample).filter(Sample.sample_id == sample_id_str).first()
     if not sample:
@@ -531,7 +533,7 @@ def get_sample_by_sample_id(sample_id_str: str, db: Session = Depends(get_db)):
 
 
 @router.put("/{sample_id}", response_model=SampleResponse)
-def update_sample(sample_id: int, sample_data: SampleUpdate, db: Session = Depends(get_db)):
+def update_sample(sample_id: int, sample_data: SampleUpdate, db: Session = Depends(get_db_samples)):
     """Update a sample"""
     try:
         sample = db.query(Sample).filter(Sample.id == sample_id).first()
@@ -559,7 +561,7 @@ def update_sample(sample_id: int, sample_data: SampleUpdate, db: Session = Depen
 
 
 @router.delete("/{sample_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_sample(sample_id: int, db: Session = Depends(get_db)):
+def delete_sample(sample_id: int, db: Session = Depends(get_db_samples)):
     """Delete a sample"""
     sample = db.query(Sample).filter(Sample.id == sample_id).first()
     if not sample:
@@ -572,7 +574,7 @@ def delete_sample(sample_id: int, db: Session = Depends(get_db)):
 
 # Generic GET by ID - MUST be last to avoid catching specific routes
 @router.get("/{sample_id}", response_model=SampleResponse)
-def get_sample(sample_id: int, db: Session = Depends(get_db)):
+def get_sample(sample_id: int, db: Session = Depends(get_db_samples)):
     """Get a specific sample by numeric ID"""
     sample = db.query(Sample).filter(Sample.id == sample_id).first()
     if not sample:
