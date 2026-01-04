@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     POSTGRES_HOST_USERS: str = "db-users"
     POSTGRES_HOST_ORDERS: str = "db-orders"
     POSTGRES_HOST_MERCHANDISER: str = "db-merchandiser"
+    POSTGRES_HOST_SETTINGS: str = "db-settings"
 
     # Multi-Database Names
     POSTGRES_DB_CLIENTS: str = "rmg_erp_clients"
@@ -26,6 +27,7 @@ class Settings(BaseSettings):
     POSTGRES_DB_USERS: str = "rmg_erp_users"
     POSTGRES_DB_ORDERS: str = "rmg_erp_orders"
     POSTGRES_DB_MERCHANDISER: str = "rmg_erp_merchandiser"
+    POSTGRES_DB_SETTINGS: str = "rmg_erp_settings"
 
     # Legacy single DB (for backward compatibility)
     POSTGRES_HOST: str = "db-samples"
@@ -38,6 +40,7 @@ class Settings(BaseSettings):
     DATABASE_URL_USERS: Optional[str] = None
     DATABASE_URL_ORDERS: Optional[str] = None
     DATABASE_URL_MERCHANDISER: Optional[str] = None
+    DATABASE_URL_SETTINGS: Optional[str] = None
 
     # JWT Settings
     SECRET_KEY: str = "your-secret-key-change-this-in-production-please-make-it-secure"
@@ -67,6 +70,7 @@ class Settings(BaseSettings):
         self.DATABASE_URL_USERS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_USERS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_USERS}"
         self.DATABASE_URL_ORDERS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_ORDERS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_ORDERS}"
         self.DATABASE_URL_MERCHANDISER = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_MERCHANDISER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_MERCHANDISER}"
+        self.DATABASE_URL_SETTINGS = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST_SETTINGS}:{self.POSTGRES_PORT}/{self.POSTGRES_DB_SETTINGS}"
 
         # Legacy DATABASE_URL defaults to samples
         if not self.DATABASE_URL:

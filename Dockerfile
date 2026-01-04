@@ -21,5 +21,6 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Start application with gunicorn
-CMD ["gunicorn", "main:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+# Start application with uvicorn (single worker for development)
+# For production, use: gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --preload
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
