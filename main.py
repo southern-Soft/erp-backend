@@ -50,6 +50,16 @@ async def startup_event():
     logger.info("Initializing all databases...")
     init_db()
     logger.info("All databases initialized successfully!")
+    
+    # Run migrations
+    try:
+        from migrations.add_buyer_name_to_sample_primary_info import add_buyer_name_column
+        add_buyer_name_column()
+        logger.info("Migrations completed successfully")
+    except Exception as e:
+        logger.warning(f"Migration warning (may already be applied): {str(e)}")
+    except ImportError as e:
+        logger.warning(f"Could not import migration (may be expected): {str(e)}")
 
     # Initialize sample data in users database
     from core.database import SessionLocalUsers
@@ -81,6 +91,8 @@ from modules.users import users_router
 from modules.health import health_router
 from modules.master_data import master_data_router
 from modules.merchandiser import merchandiser_router
+from modules.settings import settings_router
+from modules.notifications import router as notifications_router
 
 # Register routers
 app.include_router(auth_router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
@@ -95,3 +107,5 @@ app.include_router(users_router, prefix=f"{settings.API_V1_STR}/users", tags=["u
 app.include_router(health_router, prefix=f"{settings.API_V1_STR}", tags=["health"])
 app.include_router(master_data_router, prefix=f"{settings.API_V1_STR}/master", tags=["master-data"])
 app.include_router(merchandiser_router, prefix=f"{settings.API_V1_STR}/merchandiser", tags=["merchandiser"])
+app.include_router(settings_router, prefix=f"{settings.API_V1_STR}/settings", tags=["settings"])
+app.include_router(notifications_router, prefix=f"{settings.API_V1_STR}/notifications", tags=["notifications"])

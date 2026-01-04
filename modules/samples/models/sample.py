@@ -4,7 +4,12 @@ from sqlalchemy.sql import func
 from core.database import BaseSamples as Base
 
 
+# =============================================================================
+# STYLE MODELS (Keep existing structure - fundamental to system)
+# =============================================================================
+
 class StyleSummary(Base):
+    """Style master - defines the base style information"""
     __tablename__ = "style_summaries"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -18,38 +23,39 @@ class StyleSummary(Base):
     gauge = Column(String, nullable=True)
     style_description = Column(Text, nullable=True)
     is_set = Column(Boolean, default=False)
-    set_piece_count = Column(Integer, nullable=True)  # Number of pieces in set (2-6)
+    set_piece_count = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships (within samples DB only)
-    variants = relationship("StyleVariant", back_populates="style")
-    samples = relationship("Sample", back_populates="style")
+    # Relationships
+    variants = relationship("StyleVariant", back_populates="style", cascade="all, delete-orphan")
+    samples = relationship("SampleRequest", back_populates="style")
 
 
 class StyleVariant(Base):
+    """Style variant - color and size combinations for a style"""
     __tablename__ = "style_variants"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     style_summary_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=False)
     style_name = Column(String, nullable=False)
     style_id = Column(String, nullable=False, index=True)
-    colour_name = Column(String, nullable=False)  # Used for single-color variants
-    colour_code = Column(String, nullable=True)   # Hex code (e.g., #FF0000)
-    colour_ref = Column(String, nullable=True)    # Reference code (e.g., Pantone 19-4052)
-    is_multicolor = Column(Boolean, default=False)  # Flag for multi-color variants
-    display_name = Column(String, nullable=True)  # Auto-generated display name
-    piece_name = Column(String, nullable=True)  # For set pieces (e.g., "Top", "Bottom", "Jacket")
-    sizes = Column(JSON, nullable=True)  # Array of sizes (e.g., ["S", "M", "L", "XL"])
+    colour_name = Column(String, nullable=False)
+    colour_code = Column(String, nullable=True)
+    colour_ref = Column(String, nullable=True)
+    is_multicolor = Column(Boolean, default=False)
+    display_name = Column(String, nullable=True)
+    piece_name = Column(String, nullable=True)
+    sizes = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
     style = relationship("StyleSummary", back_populates="variants")
-    materials = relationship("RequiredMaterial", back_populates="variant")
     color_parts = relationship("VariantColorPart", back_populates="variant", cascade="all, delete-orphan")
+    variant_materials = relationship("StyleVariantMaterial", back_populates="variant", cascade="all, delete-orphan")
+    smv_calculations = relationship("SMVCalculation", back_populates="variant", cascade="all, delete-orphan")
 
-    # Property to access style_summary fields
     @property
     def style_category(self):
         return self.style.product_category if self.style else None
@@ -58,73 +64,360 @@ class StyleVariant(Base):
     def gauge(self):
         return self.style.gauge if self.style else None
 
-    @property
-    def full_color_description(self):
-        """Returns full color description (supports both single and multi-color)"""
-        if self.is_multicolor and self.color_parts:
-            # Multi-color: "Body: Navy Blue, Collar: White, Sleeves: Red"
-            parts = sorted(self.color_parts, key=lambda x: x.sort_order)
-            return ", ".join([f"{part.part_name}: {part.colour_name}" for part in parts])
-        else:
-            # Single color: "Navy Blue"
-            return self.colour_name
-
 
 class VariantColorPart(Base):
-    """
-    Stores individual color parts for multi-color style variants.
-    Example: A polo shirt might have:
-      - Body: Navy Blue (#001F3F)
-      - Collar: White (#FFFFFF)
-      - Sleeves: Red (#FF0000)
-    """
+    """Multi-color support for style variants"""
     __tablename__ = "style_variant_colors"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     style_variant_id = Column(Integer, ForeignKey("style_variants.id", ondelete="CASCADE"), nullable=False)
-    part_name = Column(String, nullable=False)  # e.g., "Body", "Collar", "Sleeves", "Trim", "Lining"
-    colour_name = Column(String, nullable=False)  # e.g., "Navy Blue", "White"
-    colour_code = Column(String, nullable=True)  # Hex code e.g., "#001F3F"
-    colour_ref = Column(String, nullable=True)   # Reference code e.g., "Pantone 19-4052"
-    sort_order = Column(Integer, nullable=False, default=0)  # Display order
+    part_name = Column(String, nullable=False)
+    colour_name = Column(String, nullable=False)
+    colour_code = Column(String, nullable=True)
+    colour_ref = Column(String, nullable=True)
+    sort_order = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    variant = relationship("StyleVariant", back_populates="color_parts")
+
+
+# =============================================================================
+# SAMPLE MACHINE MASTER
+# =============================================================================
+
+class SampleMachine(Base):
+    """Master data for knitting machines available for samples"""
+    __tablename__ = "sample_machines"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    machine_code = Column(String, unique=True, nullable=False, index=True)
+    machine_name = Column(String, nullable=False)
+    machine_type = Column(String, nullable=True)  # Flat, Circular, etc.
+    gauge_capability = Column(String, nullable=True)  # e.g., "7GG, 12GG, 14GG"
+    brand = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    variant = relationship("StyleVariant", back_populates="color_parts")
+    sample_plans = relationship("SamplePlan", back_populates="machine")
 
 
-class RequiredMaterial(Base):
-    __tablename__ = "required_materials"
+# =============================================================================
+# MANUFACTURING OPERATIONS MASTER
+# =============================================================================
+
+class ManufacturingOperation(Base):
+    """Master data for manufacturing operations"""
+    __tablename__ = "manufacturing_operations"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    style_variant_id = Column(Integer, ForeignKey("style_variants.id"), nullable=False)
-    style_name = Column(String, nullable=False)
-    style_id = Column(String, nullable=False)
-    material = Column(String, nullable=False)
-    uom = Column(String, nullable=False)  # Unit of Measurement (kg, meter, piece, etc.)
-    consumption_per_piece = Column(Float, nullable=False)
+    operation_id = Column(String, unique=True, nullable=False, index=True)  # e.g., "OP001"
+    operation_type = Column(String, nullable=False, index=True)  # Knitting, Linking, Trimming, etc.
+    operation_name = Column(String, nullable=False)  # Front Part, Back Part, etc.
+    standard_duration = Column(Float, nullable=True)  # Standard duration in minutes
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # UOM Conversion fields (optional - only saved if user converts)
-    converted_uom = Column(String, nullable=True)  # Converted UOM if different from base
-    converted_consumption = Column(Float, nullable=True)  # Converted consumption value
+    # Relationships
+    sample_operations = relationship("SampleOperation", back_populates="operation")
+    smv_calculations = relationship("SMVCalculation", back_populates="operation")
+
+
+# =============================================================================
+# SAMPLE REQUEST (Primary Info)
+# =============================================================================
+
+class SampleRequest(Base):
+    """Main sample request table - contains all primary sample information"""
+    __tablename__ = "sample_requests"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_id = Column(String, unique=True, nullable=False, index=True)  # Auto-generated
+    buyer_id = Column(Integer, nullable=False, index=True)  # Reference to clients DB
+    buyer_name = Column(String, nullable=True)  # Denormalized for display
+    sample_name = Column(String, nullable=False, index=True)
+    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=True)
+
+    # Technical specs
+    gauge = Column(String, nullable=True)
+    ply = Column(Integer, nullable=True)  # NEW: Number of plies
+    item = Column(String, nullable=True)
+
+    # Material references (IDs reference Settings/Materials DB)
+    yarn_id = Column(String, nullable=True)  # Reference to yarn in Settings DB
+    yarn_details = Column(JSON, nullable=True)  # Cached yarn details
+    trims_ids = Column(JSON, nullable=True)  # Array of trim IDs (buttons, zippers, labels)
+    trims_details = Column(JSON, nullable=True)  # Cached trim details
+    decorative_part = Column(String, nullable=True)  # Embroidery, Print, etc.
+    decorative_details = Column(Text, nullable=True)
+
+    # Dates
+    yarn_handover_date = Column(DateTime(timezone=True), nullable=True)  # Expected yarn receive date
+    trims_handover_date = Column(DateTime(timezone=True), nullable=True)  # Expected trims receive date
+    required_date = Column(DateTime(timezone=True), nullable=True)
+
+    # Sample details
+    request_pcs = Column(Integer, nullable=True)  # Number of pieces requested
+    sample_category = Column(String, nullable=True)  # Proto, Fit, PP, SMS, Size Set, etc.
+    color_name = Column(String, nullable=True)
+    size_name = Column(String, nullable=True)
+    additional_instruction = Column(Text, nullable=True)
+
+    # Attachments
+    techpack_url = Column(String, nullable=True)  # File URL for techpack
+    techpack_filename = Column(String, nullable=True)
+
+    # Status tracking
+    round = Column(Integer, default=1)  # Increments on remake request
+    current_status = Column(String, default="Pending")  # Pending, In Progress, Completed, etc.
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    style = relationship("StyleSummary", back_populates="samples")
+    plan = relationship("SamplePlan", back_populates="sample", uselist=False, cascade="all, delete-orphan")
+    required_materials = relationship("SampleRequiredMaterial", back_populates="sample", cascade="all, delete-orphan")
+    operations = relationship("SampleOperation", back_populates="sample", cascade="all, delete-orphan")
+    tna_items = relationship("SampleTNA", back_populates="sample", cascade="all, delete-orphan")
+    status_history = relationship("SampleStatus", back_populates="sample", cascade="all, delete-orphan")
+
+    @property
+    def style_name(self):
+        return self.style.style_name if self.style else None
+
+
+# =============================================================================
+# SAMPLE PLAN
+# =============================================================================
+
+class SamplePlan(Base):
+    """Sample planning - assignments and scheduling"""
+    __tablename__ = "sample_plans"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_request_id = Column(Integer, ForeignKey("sample_requests.id", ondelete="CASCADE"), nullable=False, unique=True)
+
+    # Assignments
+    assigned_designer = Column(String, nullable=True)
+    assigned_programmer = Column(String, nullable=True)  # NEW
+    assigned_supervisor_knitting = Column(String, nullable=True)  # NEW
+    assigned_supervisor_finishing = Column(String, nullable=True)  # NEW
+
+    # Machine assignment
+    required_knitting_machine_id = Column(Integer, ForeignKey("sample_machines.id"), nullable=True)  # NEW
+
+    # Dates
+    delivery_plan_date = Column(DateTime(timezone=True), nullable=True)  # NEW
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    sample = relationship("SampleRequest", back_populates="plan")
+    machine = relationship("SampleMachine", back_populates="sample_plans")
+
+
+# =============================================================================
+# SAMPLE REQUIRED MATERIAL
+# =============================================================================
+
+class SampleRequiredMaterial(Base):
+    """Materials required for a specific sample"""
+    __tablename__ = "sample_required_materials"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_request_id = Column(Integer, ForeignKey("sample_requests.id", ondelete="CASCADE"), nullable=False)
+
+    # Product reference (from Settings/Materials DB)
+    product_category = Column(String, nullable=True)
+    product_id = Column(String, nullable=True)  # Reference to product in Settings DB
+    product_name = Column(String, nullable=True)
+    category = Column(String, nullable=True)
+    sub_category = Column(String, nullable=True)
+
+    # Quantity
+    required_quantity = Column(Float, nullable=False)
+    uom = Column(String, nullable=False)  # kg, meter, piece, etc.
 
     remarks = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
-    variant = relationship("StyleVariant", back_populates="materials")
+    sample = relationship("SampleRequest", back_populates="required_materials")
 
+
+# =============================================================================
+# SAMPLE OPERATION (Link operations to samples)
+# =============================================================================
+
+class SampleOperation(Base):
+    """Operations assigned to a sample"""
+    __tablename__ = "sample_operations"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_request_id = Column(Integer, ForeignKey("sample_requests.id", ondelete="CASCADE"), nullable=False)
+    operation_master_id = Column(Integer, ForeignKey("manufacturing_operations.id"), nullable=False)
+
+    # Denormalized for display (auto-filled from operation master)
+    operation_type = Column(String, nullable=True)
+    operation_name = Column(String, nullable=True)
+
+    # Sequence
+    sequence_order = Column(Integer, default=1)  # Order of operation
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    sample = relationship("SampleRequest", back_populates="operations")
+    operation = relationship("ManufacturingOperation", back_populates="sample_operations")
+
+
+# =============================================================================
+# SAMPLE TNA (Time & Action - Operation-based)
+# =============================================================================
+
+class SampleTNA(Base):
+    """Sample TNA - tracks operations progress with responsible persons and dates"""
+    __tablename__ = "sample_tna"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_request_id = Column(Integer, ForeignKey("sample_requests.id", ondelete="CASCADE"), nullable=False)
+
+    # Operation info
+    operation_sequence = Column(Integer, nullable=False)  # Operation 1, 2, 3...
+    operation_name = Column(String, nullable=False)  # Display name like "Operation 1" or actual name
+
+    # Assignment
+    responsible_person = Column(String, nullable=True)
+
+    # Schedule
+    start_datetime = Column(DateTime(timezone=True), nullable=True)
+    end_datetime = Column(DateTime(timezone=True), nullable=True)
+    actual_start_datetime = Column(DateTime(timezone=True), nullable=True)
+    actual_end_datetime = Column(DateTime(timezone=True), nullable=True)
+
+    # Status
+    status = Column(String, default="Pending")  # Pending, In Progress, Completed, Delayed
+    remark = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    sample = relationship("SampleRequest", back_populates="tna_items")
+
+
+# =============================================================================
+# SAMPLE STATUS TRACKING
+# =============================================================================
+
+class SampleStatus(Base):
+    """Sample status tracking - maintains history of status changes"""
+    __tablename__ = "sample_status"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    sample_request_id = Column(Integer, ForeignKey("sample_requests.id", ondelete="CASCADE"), nullable=False)
+
+    # Status
+    status_by_sample = Column(String, nullable=True)  # Status set by sample team
+    status_from_merchandiser = Column(String, nullable=True)  # Status from merchandiser
+
+    # Notes
+    notes = Column(Text, nullable=True)
+
+    # Who made the change
+    updated_by = Column(String, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    sample = relationship("SampleRequest", back_populates="status_history")
+
+
+# =============================================================================
+# STYLE VARIANT MATERIAL (Required Material per Style Variant)
+# =============================================================================
+
+class StyleVariantMaterial(Base):
+    """Materials required for a style variant (used for costing/planning)"""
+    __tablename__ = "style_variant_materials"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    style_variant_id = Column(Integer, ForeignKey("style_variants.id", ondelete="CASCADE"), nullable=False)
+
+    # Material reference
+    style_material_id = Column(String, nullable=True)  # Internal material ID
+    product_category = Column(String, nullable=True)
+    sub_category = Column(String, nullable=True)
+    product_id = Column(String, nullable=True)  # Reference to product in Settings DB
+    product_name = Column(String, nullable=True)
+
+    # Quantity and weight
+    required_quantity = Column(Float, nullable=True)
+    uom = Column(String, nullable=True)
+    weight = Column(Float, nullable=True)  # Auto-calculated based on product
+    weight_uom = Column(String, default="kg")
+
+    # Condition/Notes
+    condition = Column(Text, nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    variant = relationship("StyleVariant", back_populates="variant_materials")
+
+
+# =============================================================================
+# SMV CALCULATION (Per Style Variant)
+# =============================================================================
+
+class SMVCalculation(Base):
+    """SMV (Standard Minute Value) calculation per style variant and operation"""
+    __tablename__ = "smv_calculations"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    style_variant_id = Column(Integer, ForeignKey("style_variants.id", ondelete="CASCADE"), nullable=False)
+    operation_id = Column(Integer, ForeignKey("manufacturing_operations.id"), nullable=True)
+
+    # Operation details (denormalized)
+    operation_type = Column(String, nullable=True)
+    operation_name = Column(String, nullable=True)
+
+    # Duration
+    number_of_operations = Column(Integer, default=1)
+    duration_hms = Column(String, nullable=True)  # Stored as "HH:MM:SS"
+    total_duration_minutes = Column(Float, nullable=True)  # Calculated total in minutes
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    variant = relationship("StyleVariant", back_populates="smv_calculations")
+    operation = relationship("ManufacturingOperation", back_populates="smv_calculations")
+
+
+# =============================================================================
+# LEGACY SUPPORT (Deprecated - kept for migration)
+# =============================================================================
 
 class Sample(Base):
+    """DEPRECATED: Legacy sample table - use SampleRequest instead"""
     __tablename__ = "samples"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     sample_id = Column(String, unique=True, nullable=False, index=True)
-    buyer_id = Column(Integer, nullable=False, index=True)  # No FK - clients DB
-    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=False)  # Same DB - keep FK
-    sample_type = Column(String, nullable=False)  # Proto, Fit, PP, etc.
+    buyer_id = Column(Integer, nullable=False, index=True)
+    style_id = Column(Integer, ForeignKey("style_summaries.id"), nullable=True)
+    sample_type = Column(String, nullable=True)
     sample_description = Column(Text, nullable=True)
     item = Column(String, nullable=True)
     gauge = Column(String, nullable=True)
@@ -136,69 +429,13 @@ class Sample(Base):
     required_sample_quantity = Column(Integer, nullable=True)
     round = Column(Integer, default=1)
     notes = Column(Text, nullable=True)
-
-    # Submit status: Approve, Reject and Request for remake, Proceed Next Stage With Comments, Reject & Drop, Drop
-    submit_status = Column(String, nullable=True)
-
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships (within samples DB only)
-    style = relationship("StyleSummary", back_populates="samples")
-    operations = relationship("SampleOperation", back_populates="sample")
-
-    @property
-    def style_name(self):
-        return self.style.style_name if self.style else None
-
-
-class SampleTNA(Base):
-    __tablename__ = "sample_tna"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    sample_id = Column(String, nullable=False, index=True)  # Removed unique=True to allow multiple records for set pieces
-    buyer_name = Column(String, nullable=False)
-    style_name = Column(String, nullable=False)
-    sample_type = Column(String, nullable=False)
-    sample_description = Column(Text, nullable=True)
-    item = Column(String, nullable=True)
-    gauge = Column(String, nullable=True)
-    worksheet_rcv_date = Column(String, nullable=True)
-    yarn_rcv_date = Column(String, nullable=True)
-    required_date = Column(String, nullable=True)
-    color = Column(String, nullable=True)
-    piece_name = Column(String, nullable=True)  # For set pieces
-    notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-
-class SamplePlan(Base):
-    __tablename__ = "sample_plan"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    sample_id = Column(String, nullable=False, index=True)
-    buyer_name = Column(String, nullable=False)
-    style_name = Column(String, nullable=False)
-    sample_type = Column(String, nullable=False)
-    sample_description = Column(Text, nullable=True)
-    item = Column(String, nullable=True)
-    gauge = Column(String, nullable=True)
-    worksheet_rcv_date = Column(String, nullable=True)
-    yarn_rcv_date = Column(String, nullable=True)
-    required_date = Column(String, nullable=True)
-    color = Column(String, nullable=True)
-    piece_name = Column(String, nullable=True)  # For set pieces
-    assigned_designer = Column(String, nullable=True)
-    required_sample_quantity = Column(Integer, nullable=True)
-    round = Column(Integer, default=1)
-    notes = Column(Text, nullable=True)
     submit_status = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class OperationType(Base):
+    """DEPRECATED: Legacy operation types - use ManufacturingOperation instead"""
     __tablename__ = "operation_types"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
@@ -208,68 +445,47 @@ class OperationType(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
-class SMVCalculation(Base):
-    __tablename__ = "smv_calculations"
+class RequiredMaterial(Base):
+    """DEPRECATED: Legacy required materials - use StyleVariantMaterial or SampleRequiredMaterial"""
+    __tablename__ = "required_materials"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    sample_id = Column(String, nullable=False, index=True)
-    buyer_name = Column(String, nullable=False)
-    style_name = Column(String, nullable=False)
-    category = Column(String, nullable=True)
-    gauge = Column(String, nullable=True)
-    total_smv = Column(Float, nullable=False)
-    operations = Column(Text, nullable=True)  # JSON string of operations
+    style_variant_id = Column(Integer, ForeignKey("style_variants.id"), nullable=True)
+    style_name = Column(String, nullable=True)
+    style_id = Column(String, nullable=True)
+    material = Column(String, nullable=True)
+    uom = Column(String, nullable=True)
+    consumption_per_piece = Column(Float, nullable=True)
+    converted_uom = Column(String, nullable=True)
+    converted_consumption = Column(Float, nullable=True)
+    remarks = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-
-class SampleOperation(Base):
-    __tablename__ = "sample_operations"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    sample_id = Column(Integer, ForeignKey("samples.id"), nullable=False)
-    operation_type = Column(String, nullable=False)  # Knitting, Linking, Trimming, Mending, etc.
-    name_of_operation = Column(String, nullable=False)  # Front Part, Back Part, Sleeve, etc.
-    number_of_operation = Column(Integer, default=1)
-    size = Column(String, nullable=True)
-    duration = Column(Float, nullable=True)  # in minutes
-    total_duration = Column(Float, nullable=True)  # number_of_operation * duration
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # Relationships
-    sample = relationship("Sample", back_populates="operations")
 
 
 class GarmentColor(Base):
-    """
-    Master table for garment colors.
-    Users can add custom colors with name, hex code, and reference code.
-    """
+    """Master table for garment colors"""
     __tablename__ = "garment_colors"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    color_name = Column(String, nullable=False, unique=True, index=True)  # e.g., "Navy Blue"
-    color_code = Column(String, nullable=False)  # Hex code e.g., "#001F3F"
-    color_ref = Column(String, nullable=True)    # Reference/Pantone code e.g., "19-4052"
-    category = Column(String, nullable=True)     # e.g., "Blue", "Red", "Neutral"
+    color_name = Column(String, nullable=False, unique=True, index=True)
+    color_code = Column(String, nullable=False)
+    color_ref = Column(String, nullable=True)
+    category = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
 class GarmentSize(Base):
-    """
-    Master table for garment sizes.
-    Users can add custom sizes with value, label, and sort order.
-    """
+    """Master table for garment sizes"""
     __tablename__ = "garment_sizes"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    size_value = Column(String, nullable=False, unique=True, index=True)  # e.g., "S", "M", "L", "42"
-    size_label = Column(String, nullable=True)   # e.g., "Small", "Medium", "Large"
-    size_category = Column(String, nullable=True)  # e.g., "Standard", "Numeric", "Custom"
-    sort_order = Column(Integer, default=0)      # For display ordering
+    size_value = Column(String, nullable=False, unique=True, index=True)
+    size_label = Column(String, nullable=True)
+    size_category = Column(String, nullable=True)
+    sort_order = Column(Integer, default=0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
